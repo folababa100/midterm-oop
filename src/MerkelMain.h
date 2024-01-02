@@ -12,7 +12,7 @@ class MerkelMain
         MerkelMain();
         /** Call this to start the sim */
         void init();
-    private: 
+    private:
         void printMenu();
         void printHelp();
         void printMarketStats();
@@ -20,6 +20,11 @@ class MerkelMain
         void enterBid();
         void printWallet();
         void gotoNextTimeframe();
+        void printCandlesticks();
+        void printCandlestickGraph();
+
+       void printVolume();
+
         int getUserOption();
         void processUserOption(int userOption);
 
