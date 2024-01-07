@@ -30,25 +30,15 @@ void MerkelMain::init()
 
 void MerkelMain::printMenu()
 {
-    // 1 print help
     std::cout << "1: Print help " << std::endl;
-    // 2 print exchange stats
     std::cout << "2: Print exchange stats" << std::endl;
-    // 3 make an offer
-    std::cout << "3: Make an offer " << std::endl;
-    // 4 make a bid
-    std::cout << "4: Make a bid " << std::endl;
-    // 5 print wallet
+    std::cout << "3: Make an offer (sell) " << std::endl;
+    std::cout << "4: Make a bid (buy) " << std::endl;
     std::cout << "5: Print wallet " << std::endl;
-    // 6 calculate candlestick
-    std::cout << "6: Calculate candlestick" << std::endl;
-    // 7 print candlestick
-    std::cout << "7: Print candlestick" << std::endl;
-    // 8 print volume
-    std::cout << "8: Print volume" << std::endl;
-
+    std::cout << "6: Create a text-based plot" << std::endl;
+    std::cout << "7: Plot a text graph" << std::endl;
+    std::cout << "8: Go to the next" << std::endl;
     std::cout << "============== " << std::endl;
-
     std::cout << "Current time is: " << currentTime << std::endl;
 }
 
@@ -61,32 +51,14 @@ void MerkelMain::printMarketStats()
 {
     for (std::string const& p : orderBook.getKnownProducts())
     {
-        std::cout << "Product: " << p << std::endl;
+        // Color codes from https://stackoverflow.com/questions/2616906/how-do-i-output-coloured-text-to-a-linux-terminal
+        std::cout << "\033[32m" << "Product: " << "\033[0m" << p << std::endl;
         std::vector<OrderBookEntry> entries = orderBook.getOrders(OrderBookType::ask,
                                                                 p, currentTime);
-        std::cout << "Asks seen: " << entries.size() << std::endl;
-        std::cout << "Max ask: " << OrderBook::getHighPrice(entries) << std::endl;
-        std::cout << "Min ask: " << OrderBook::getLowPrice(entries) << std::endl;
-
-
-
+        std::cout << "\033[33m" << "Asks seen: " << "\033[0m" << entries.size() << std::endl;
+        std::cout << "\033[31m" << "Max ask: " << "\033[0m" << OrderBook::getHighPrice(entries) << std::endl;
+        std::cout << "\033[34m" << "Min ask: " << "\033[0m" << OrderBook::getLowPrice(entries) << std::endl;
     }
-    // std::cout << "OrderBook contains :  " << orders.size() << " entries" << std::endl;
-    // unsigned int bids = 0;
-    // unsigned int asks = 0;
-    // for (OrderBookEntry& e : orders)
-    // {
-    //     if (e.orderType == OrderBookType::ask)
-    //     {
-    //         asks ++;
-    //     }
-    //     if (e.orderType == OrderBookType::bid)
-    //     {
-    //         bids ++;
-    //     }
-    // }
-    // std::cout << "OrderBook asks:  " << asks << " bids:" << bids << std::endl;
-
 }
 
 void MerkelMain::enterAsk()
@@ -162,7 +134,7 @@ void MerkelMain::enterBid()
     }
 }
 
-void MerkelMain::printWallet()
+void MerkelMain::generateWallet()
 {
     std::cout << wallet.toString() << std::endl;
 }
@@ -206,70 +178,74 @@ int MerkelMain::getUserOption()
     return userOption;
 }
 
-//written by me!
-void MerkelMain::printCandlesticks(){
+// I wrote the function below
+void MerkelMain::generateCandleSticks(){
 
-    std::string userInput = "";
-    std::cout << "Please enter a 'product,ask/bid' to generate a candlestick graph for, eg: " << std::endl;//take user input
-    std::getline (std::cin,userInput);
+    std::string input = "";
 
-    std::vector<CandleStick> candlesticks = CandleStick::computeCandlesticks(orderBook, userInput);//get candlesticks to this spec
+    std::cout << "Please enter 'product,ask/bid' to see a candlestick graph: " << std::endl;
+    //accept user input
+    std::getline (std::cin,input);
+    //get candlesticks
+    std::vector<CandleStick> candlesticks = CandleStick::computeCandlesticks(orderBook, input);
 
-    std::vector<CandleStick> candlesticksGroup(candlesticks.begin() + 1, candlesticks.begin() + 11);//ideally, return a random set (unable to rand in c++??)
+    //returns a random set
+    std::vector<CandleStick> candlesticksGroup(candlesticks.begin() + 1, candlesticks.begin() + 11);
     CandleStickGraph graph;
-    graph.buildCandlestick(candlesticksGroup, userInput);//build a new graph for this group
+    //builds out a new graph
+    graph.buildCandlestick(candlesticksGroup, input);
 
 
 }
-//written by me!
-void MerkelMain::printVolume(){
-    std::string userInput = "";
-    std::cout << "Please enter a 'product,ask/bid' to generate a 'price volume' graph for: " << std::endl;//take user input
-    std::getline (std::cin,userInput);
+// I wrote the function below
+void MerkelMain::generateVolume(){
+    std::string input = "";
+    std::cout << "Please enter 'product,ask/bid' to see a 'price volume' graph:" << std::endl;
 
-    std::vector<CandleStick> candlesticks = CandleStick::computeCandlesticks(orderBook, userInput);//get candlesticks to this spec
-
-    std::vector<CandleStick> candlesticksGroup(candlesticks.begin() + 1, candlesticks.begin() + 11);//ideally, return a random set
+    //accept user input
+    std::getline (std::cin,input);
+    //get candlesticks
+    std::vector<CandleStick> candlesticks = CandleStick::computeCandlesticks(orderBook, input);
+    //returns a random set
+    std::vector<CandleStick> candlesticksGroup(candlesticks.begin() + 1, candlesticks.begin() + 11);
     CandleStickGraph graph;
-    graph.volumeGraph(candlesticksGroup, userInput);//build a new graph for this group
+    //builds out a new graph
+    graph.volumeGraph(candlesticksGroup, input);
 }
 
+// I refactored the function below from if cases to switch cases
 void MerkelMain::processUserOption(int userOption)
 {
-    if (userOption == 0) // bad input
-    {
-        std::cout << "Invalid choice. Choose 1-6" << std::endl;
-    }
-    if (userOption == 1)
-    {
-        printHelp();
-    }
-    if (userOption == 2)
-    {
-        printMarketStats();
-    }
-    if (userOption == 3)
-    {
-        enterAsk();
-    }
-    if (userOption == 4)
-    {
-        enterBid();
-    }
-    if (userOption == 5)
-    {
-        printWallet();
-    }
-    if (userOption == 6)
-    {
-        gotoNextTimeframe();
-    }
-    if (userOption == 7)
-    {
-        printCandlesticks();
-    }
-    if (userOption == 8)
-    {
-        printVolume();
+    switch (userOption) {
+        case 0: // bad input
+            std::cout << "Invalid choice. Choose 1-8" << std::endl;
+            break;
+        case 1:
+            printHelp();
+            break;
+        case 2:
+            printMarketStats();
+            break;
+        case 3:
+            enterAsk();
+            break;
+        case 4:
+            enterBid();
+            break;
+        case 5:
+            generateWallet();
+            break;
+        case 6:
+            generateCandleSticks();
+            break;
+        case 7:
+            generateVolume();
+            break;
+        case 8:
+            gotoNextTimeframe();
+            break;
+        default:
+            std::cout << "Invalid choice. Choose 1-8" << std::endl;
+            break;
     }
 }

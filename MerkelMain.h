@@ -18,20 +18,18 @@ class MerkelMain
         void printMarketStats();
         void enterAsk();
         void enterBid();
-        void printWallet();
+        void generateWallet();
         void gotoNextTimeframe();
-        void printCandlesticks();
-        void printCandlestickGraph();
+        void generateCandleSticks();
 
-       void printVolume();
+        void generateVolume();
 
         int getUserOption();
         void processUserOption(int userOption);
 
         std::string currentTime;
 
-//        OrderBook orderBook{"20200317.csv"};
-	OrderBook orderBook{"20200601.csv"};
+	      OrderBook orderBook{"20200601.csv"};
         Wallet wallet;
 
 };

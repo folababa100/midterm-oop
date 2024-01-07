@@ -9,54 +9,44 @@
 
 /**stringbuilder that takes in the step of the graph, low point, candlestick, and an empty string array to set**/
 void CandleStickGraph::stringBuilder(double step, double low, CandleStick& candle, std::array<std::string, 24>& strings) {
-    //std::array<std::string, 8> strings;
-    //strings.fill(""); // Initialize all elements with an empty string
-    const std::string GREEN_COLOR = "\033[32m";//set the colorways
+    const std::string GREEN_COLOR = "\033[32m";
     const std::string RED_COLOR = "\033[31m";
     const std::string RESET_COLOR = "\033[0m";
+    const std::string EMPTY_SPACE = "              ";
+    const std::string VERTICAL_LINE = "      |       ";
+    const std::string CANDLE_BODY = "    ==|==     ";
+    const std::string CANDLE_TOP_BOTTOM = "     ___      ";
 
-    int openPos = int((candle.open - low)/step);//define each position relative to low and step
+    int openPos = int((candle.open - low)/step);
     int closePos = int((candle.close - low)/step);
     int highPos = int((candle.high - low)/step);
     int lowPos = int((candle.low - low)/ step);
 
-    //std::string spacing = "     ";
+    std::string color = (candle.close < candle.open) ? RED_COLOR : GREEN_COLOR;
 
-    std::string color = (candle.close < candle.open) ? RED_COLOR : GREEN_COLOR;//determine coloring of the candlesticks
-
-
-    for (int i = 0; i < lowPos; i++) {//handles starting blank space
-        strings[i].append("              ");
+    for (int i = 0; i < lowPos; ++i) {
+        strings[i].append(EMPTY_SPACE);
     }
-    for (int i = lowPos; i < std::min(openPos, closePos); ++i) {//keeps adding until at the top
-        //std::cout << "it's happening" << std::endl;
-        //strings[i] += "      |       " ;
-        strings[i] += color + "      |       " + RESET_COLOR;
+    for (int i = lowPos; i < std::min(openPos, closePos); ++i) {
+        strings[i] += color + VERTICAL_LINE + RESET_COLOR;
     }
-    strings[std::min(openPos, closePos)] +=  "     ___      " ;//set the close value
-    for (int i = std::min(openPos, closePos)+1; i < std::max(openPos, closePos); i++){//body of the candlestick
-        //strings[i] += "| |      ";
-        strings[i] += color + "     | |      " + RESET_COLOR;
+    strings[std::min(openPos, closePos)] += color + CANDLE_TOP_BOTTOM + RESET_COLOR;
+    for (int i = std::min(openPos, closePos) + 1; i < std::max(openPos, closePos); ++i) {
+        strings[i] += color + CANDLE_BODY + RESET_COLOR;
     }
-    if(openPos != closePos){
-        //strings[std::max(openPos, closePos)] += "___      ";
-        strings[std::max(openPos, closePos)] += color + "     ___      " + RESET_COLOR;//open value, if not at the same value as close
+    if (openPos != closePos) {
+        strings[std::max(openPos, closePos)] += color + CANDLE_TOP_BOTTOM + RESET_COLOR;
     }
-    for (int i = std::max(openPos, closePos) + 1; i < highPos + 1; i++){
-        //std::cout << "it's happening 2" << std::endl;
-        //strings[i] += " |       ";
-        strings[i] += color + "      |       " + RESET_COLOR;
+    for (int i = std::max(openPos, closePos) + 1; i <= highPos; ++i) {
+        strings[i] += color + VERTICAL_LINE + RESET_COLOR;
     }
-    for(int i = highPos + 1; i < 16; i++){
-        strings[i] += "              ";
+    for (int i = highPos + 1; i < 16; ++i) {
+        strings[i] += EMPTY_SPACE;
     }
-
 }
 
+/**get precision for the graph, takes a product string**/
 int CandleStickGraph::getPrecision(std::string product){
-
-
-    //the precision will change dependent on the product currency type
     int precisionSize = 2;
     if(product == "ETH/BTC"){
         precisionSize = 7;
@@ -86,8 +76,8 @@ void CandleStickGraph::buildCandlestick(std::vector<CandleStick> candlesticks, s
     CandleStick highest_candlestick = *std::max_element(candlesticks.begin(), candlesticks.end(), [](CandleStick a, CandleStick b){return a.high < b.high;});
     CandleStick lowest_candlestick = *std::min_element(candlesticks.begin(), candlesticks.end(), [] (CandleStick a, CandleStick b){return a.low < b.low;});
 
-
-    std::string product;//set the product string
+    //set the product string
+    std::string product;
 
 
     std::vector<std::string> tokens = CSVReader::tokenise(productType, ',');
@@ -96,7 +86,8 @@ void CandleStickGraph::buildCandlestick(std::vector<CandleStick> candlesticks, s
         std::cout << "MerkelMain::enterAsk Bad input! " << productType << std::endl;
     }
     else{
-        product = tokens[0]; //product name
+        //product name
+        product = tokens[0];
     }
 
 
@@ -108,37 +99,31 @@ void CandleStickGraph::buildCandlestick(std::vector<CandleStick> candlesticks, s
     double high = highest_candlestick.high;
     double low = lowest_candlestick.low;
 
+    //step value for the y axis
+    double step = (high-low)/23;
 
-    double step = (high-low)/23;//step value for the y axis
+    //initialize array obj
+    std::array<std::string, 24> strings;
 
-    std::array<std::string, 24> strings;//initialize array obj
+    //output price title
+    std::cout << "PRICE" << std::endl;
 
-
-    std::cout << "PRICE" << std::endl; //output price title
-
-    for(int i = 0; i < strings.size(); i++){//sets the y axis and precision of the step values
+    //sets the y axis and precision of the step values
+    for(int i = 0; i < strings.size(); i++){
         //std format, format string
         std::stringstream stream;
         stream << std::fixed << std::setprecision(precisionSize) << std::setw(5) << low + i * step;
         strings[i] = stream.str() + " -| ";
     }
 
-
-    for(int i = 0; i < candlesticks.size(); i++){//make a graph for each candlestick!
-
-        /*
-        std::cout << "candlestick low val" << candlesticks[i].low << std::endl;
-        std::cout << "candlestick high val" << candlesticks[i].high << std::endl;
-        std::cout << "candlestick open val" << candlesticks[i].open << std::endl;
-        std::cout << "candlestick close val" << candlesticks[i].close << std::endl;
-        std::cout << "candlestick timestamp" << candlesticks[i].date << std::endl;
-        std::cout << "=====================" << std::endl;
-        */
-
+    //make a graph for each candlestick!
+    for(int i = 0; i < candlesticks.size(); i++){
         stringBuilder(step, low, candlesticks[i], strings);
 
     }
-    for(int i = strings.size() - 1; i >= 0; i--){//iterate back through to draw the strings
+
+    //iterate back through to draw the strings
+    for(int i = strings.size() - 1; i >= 0; i--){
         std::cout << strings[i] << std::endl;
     }
 
@@ -160,24 +145,31 @@ void CandleStickGraph::buildCandlestick(std::vector<CandleStick> candlesticks, s
 }
 /**string builder for volume, takes a candlestick, step size, and array of strings**/
 void CandleStickGraph::volumeBuilder(double step, CandleStick& candle, std::array<std::string, 8>& strings) {
-    int top = int(candle.volume / step);//sets the "top value" relative
-    for(int i = 0; i < top; i++){//iterates until that "top" value
-        strings[i] += "     ***      ";//sets contents of bar graph
+    //sets the "top value" relative
+    int top = int(candle.volume / step);
+    //iterates until that "top" value
+    //sets contents of bar graph
+    for(int i = 0; i < top; i++){
+        strings[i] += "     |||      ";
     }
     for(int i = top; i < 8; i++){
-        strings[i] += "              ";//adding spacing to specified size
+        //adding spacing to specified size
+        strings[i] += "              ";
     }
 }
 /**actual construction of price volume bar graph, takes a vector of candlesticks and a string of product types**/
 void CandleStickGraph::volumeGraph(std::vector<CandleStick> candlesticks, std::string productType){
-    std::array<std::string, 8> strings;//set the array size 8
+    //set the array size 8
+    std::array<std::string, 8> strings;
     CandleStick highest_candlestick = *std::max_element(candlesticks.begin(), candlesticks.end(), [](CandleStick a, CandleStick b){return a.volume < b.volume;});//find candlestick with highest volume to set the scale
     double highestVol = highest_candlestick.volume;
 
-    double step = highestVol / 7;//calculate step by the size of strings
+    //calculate step by the size of strings
+    double step = highestVol / 7;
     highestVol += step;
 
-    std::string product;//set the product string
+    //set the product string
+    std::string product;
 
 
     std::vector<std::string> tokens = CSVReader::tokenise(productType, ',');
@@ -186,12 +178,15 @@ void CandleStickGraph::volumeGraph(std::vector<CandleStick> candlesticks, std::s
         std::cout << "MerkelMain::enterAsk Bad input! " << productType << std::endl;
     }
     else{
-        product = tokens[0]; //product name
+        //product name
+        product = tokens[0];
     }
 
-    int precision = getPrecision(product);//get the precision
+    //get the precision
+    int precision = getPrecision(product);
 
-    for(int i = 0; i < strings.size(); i++){//sets the y axis and precision of the step values
+    //sets the y axis and precision of the step values
+    for(int i = 0; i < strings.size(); i++){
         //std format, format string
         std::stringstream stream;
         stream << std::fixed << std::setprecision(precision) << std::setw(10) << 0 + i * step;
@@ -202,7 +197,8 @@ void CandleStickGraph::volumeGraph(std::vector<CandleStick> candlesticks, std::s
         volumeBuilder(step, candlesticks[i], strings);
     }
 
-    for(int i = strings.size() - 1; i >= 0; i--){//iterate back through to draw the strings
+    //iterate back through to draw the strings
+    for(int i = strings.size() - 1; i >= 0; i--){
         std::cout << strings[i] << std::endl;
     }
 
@@ -212,7 +208,8 @@ void CandleStickGraph::volumeGraph(std::vector<CandleStick> candlesticks, std::s
     }
     std::cout<<std::endl;
 
-    std::cout<<"            ";//output dates
+    std::cout<<"            ";
+    //output dates
     for(int i = 0; i < candlesticks.size(); i++){
         std::string tempDate = candlesticks[i].date;
         std::vector<std::string> tokenDates = CSVReader::tokenise(tempDate, ' ');

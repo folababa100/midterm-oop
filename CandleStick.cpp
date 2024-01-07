@@ -5,18 +5,31 @@
 #include <vector>
 #include <iostream>
 #include <string>
+#include <map>
+#include <sstream>
+#include <ctime>
+#include <stdexcept>
 
-/**alternative string to type conversion**/
+// I wrote this function below.
 OrderBookType convert(const std::string& str)
 {
-    if(str == "bid") return OrderBookType::bid;
-    else if(str == "ask") return OrderBookType::ask;
-    else if(str == "asksale") return OrderBookType::asksale;
-    else if(str == "bidsale") return OrderBookType::bidsale;
-    else return OrderBookType::unknown;
+    static const std::map<std::string, OrderBookType> mapping = {
+      {"bid", OrderBookType::bid},
+      {"ask", OrderBookType::ask},
+      {"asksale", OrderBookType::asksale},
+      {"bidsale", OrderBookType::bidsale}
+    };
+
+    auto it = mapping.find(str);
+    if (it != mapping.end()) {
+      return it->second;
+    } else {
+      return OrderBookType::unknown;
+    }
 }
-/**epoch utility for if we want to be able to quantify time and sort things in a robust way apart from data being sorted, returns int of time**/
-int convertToEpoch(const std::string& timestamp){
+
+/**epoch conversion utility**/
+int epochConversion(const std::string& timestamp){
     std::vector<std::string> timeTokens = CSVReader::tokenise(timestamp, ' ');//split into year and timestamp
     std::vector<std::string> timeSet = CSVReader::tokenise(timeTokens[1],':');
 
@@ -40,108 +53,64 @@ int convertToEpoch(const std::string& timestamp){
 
 //std::vector<CandleStick> computeCandlesticks(OrderBook& orderBook, const std::string& productType) {
 /**candlestick computation, takes orderBook and a product type string as input and returns vector of candlestick objects**/
-std::vector<CandleStick> CandleStick::computeCandlesticks(OrderBook& orderBook, const std::string& productType) {
-    std::vector<CandleStick> candlesticks;
-    std::string product;
-    OrderBookType type;
-    //first, tokenize the product type request argument into ask/bid (bookType), and product
+std::pair<std::string, OrderBookType> parseProductType(const std::string& productType) {
     std::vector<std::string> tokens = CSVReader::tokenise(productType, ',');
-    if (tokens.size() != 2)
-    {
-        std::cout << "MerkelMain::enterAsk Bad input! " << productType << std::endl;
+    if (tokens.size() != 2) {
+        throw std::invalid_argument("Invalid product type format: " + productType);
     }
-    else{
-        product = tokens[0]; //product name
-        type = convert(tokens[1]); //type name
-    }
-
-    //OrderBook orders = orderBook;
-
-    //std::string startTime = orderBook.getEarliestTime();   //next isolate the timestamp of the first orderBook and store in a variable
-    //int secondsPerCandlestick = 1;
-
-
-    OrderBook currentTimeBlockOrders;
-
-   //calculate the first candlestick as a base???
-
-
-   double runningTotal = 0;
-   double counter = 0;
-   double open = 0;
-   double close = 0;
-   double low = 0;
-   double high = 0;
-   double isFirst = true;
-
-   double volume = 0;
-
-   OrderBookEntry intlOrder = orderBook.getOrderByIndex(0);
-
-   //int i = 0;
-   //start looping
-   //while(true){
-   for(int i = 0; i < orderBook.getOrderSetSize(); i++){
-       OrderBookEntry order = orderBook.getOrderByIndex(i);
-
-       //int timeInEpoch = convertToEpoch(order.timestamp);
-       //int startTimeInEpoch = convertToEpoch(startTime);
-
-
-       //if(timeInEpoch > startTimeInEpoch + secondsPerCandlestick){
-       if(OrderBookEntry::compareByTimestamp(intlOrder, order)){//time is up!!
-           //compute the candlestick!
-           //open????
-
-           //if this is the first candlestick being created
-           if(isFirst){
-
-               close = runningTotal/counter;
-               open = close;
-               //low = currentTimeBlockOrders.getLowPrice();
-               //high = currentTimeBlockOrders.getHighPrice();
-
-               //set the values and ignore it
-               isFirst = false;//set flag to false
-           }
-           else{
-               close = runningTotal/counter;
-               low = currentTimeBlockOrders.getLowPrice();
-               high = currentTimeBlockOrders.getHighPrice();
-
-               //push new candlestick object to candlestick
-               candlesticks.emplace_back(CandleStick(order.timestamp, open, high, low, close, volume));
-
-               //shift the startTime
-               //startTime = order.timestamp; //current order at this index is now the start
-               intlOrder = order;
-               //reset the counter
-               counter = 0;
-               volume = 0;
-               runningTotal = 0;
-               open = close;
-               currentTimeBlockOrders.removeAllElements(); //flush the timeblock
-           }
-
-
-       } else{//still within timeframe
-
-           //filter out for type of things to "add"
-           if(order.orderType == type && order.product == product){
-
-               //increase the running total
-               runningTotal += (order.price * order.amount);
-               //increase volume
-               volume += order.price;
-               //increase the counter
-               counter += order.amount;
-               currentTimeBlockOrders.insertOrder(order);//add current order to block of orders for the candlestick
-           }
-           //i++;
-       }
-   }
-   return candlesticks;
-
+    return {tokens[0], convert(tokens[1])};
 }
 
+std::vector<CandleStick> CandleStick::computeCandlesticks(OrderBook& orderBook, const std::string& productType) {
+    if (orderBook.getOrderSetSize() == 0) {
+        throw std::runtime_error("Order book is empty.");
+    }
+
+    std::string product;
+    OrderBookType type;
+    std::tie(product, type) = parseProductType(productType);
+
+    std::vector<CandleStick> candlesticks;
+    OrderBook currentTimeBlockOrders;
+
+    double runningTotal = 0;
+    double counter = 0;
+    double open = 0;
+    double close = 0;
+    double low = 0;
+    double high = 0;
+    bool isFirst = true;
+    double volume = 0;
+
+    OrderBookEntry lastOrder = orderBook.getOrderByIndex(0);
+
+    for(int i = 0; i < orderBook.getOrderSetSize(); i++) {
+        OrderBookEntry order = orderBook.getOrderByIndex(i);
+
+        if(OrderBookEntry::compareByTimestamp(lastOrder, order)) {
+            if (isFirst) {
+                close = open = runningTotal / counter;
+                isFirst = false;
+            } else {
+                close = runningTotal / counter;
+                low = currentTimeBlockOrders.getLowPrice();
+                high = currentTimeBlockOrders.getHighPrice();
+                candlesticks.emplace_back(CandleStick(order.timestamp, open, high, low, close, volume));
+                lastOrder = order;
+                runningTotal = volume = counter = 0;
+                open = close;
+                currentTimeBlockOrders.removeAllElements();
+            }
+        } else {
+            if(order.orderType == type && order.product == product) {
+                double totalOrderValue = order.price * order.amount;
+                runningTotal += totalOrderValue;
+                volume += order.price;
+                counter += order.amount;
+                currentTimeBlockOrders.insertOrder(order);
+            }
+        }
+    }
+    return candlesticks;
+}
 
